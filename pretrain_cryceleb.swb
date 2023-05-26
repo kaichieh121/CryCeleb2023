@@ -14,8 +14,8 @@ PYTHON_VIRTUAL_ENVIRONMENT=/home/kcchang3/.conda/envs/hertin_clone
 conda activate ${PYTHON_VIRTUAL_ENVIRONMENT}
 
 WORK_DIR=/home/kcchang3/workplace/fairseq/examples/wav2vec
-MANIFEST_DIR=/home/kcchang3/data/CryCeleb2023/fairseq_manifest
-save_dir=${WORK_DIR}/outputs/wav2vec-base-64gpu-cryceleb-base
+MANIFEST_DIR=/home/kcchang3/data/CryCeleb2023/fairseq_manifest/30s
+save_dir=${WORK_DIR}/outputs/wav2vec-base-64gpu-cryceleb-30s
 
 srun --gres=gpu:4 --ntasks=1 fairseq-hydra-train \
     task.data=${MANIFEST_DIR} \

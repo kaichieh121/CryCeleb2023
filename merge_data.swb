@@ -1,0 +1,61 @@
+#!/bin/bash
+#SBATCH --job-name="cryceleb_pre"
+#SBATCH --output="logs/cryceleb_pre.%j.%N.out"
+#SBATCH --error="logs/cryceleb_pre.%j.%N.err"
+#SBATCH --partition=gpux4
+#SBATCH --time=24
+#SBATCH --mail-user=kcchang3@illinois.edu
+#SBATCH --mail-type=ALL
+
+module load conda_base
+module load cuda/11.2.152
+
+PYTHON_VIRTUAL_ENVIRONMENT=/home/kcchang3/.conda/envs/hertin_clone
+conda activate ${PYTHON_VIRTUAL_ENVIRONMENT}
+
+. parse_options.sh || exit 1;
+
+
+DATASET_PATH=/home/kcchang3/data/CryCeleb2023/audio_dump
+DEST_DIR=/home/kcchang3/data/CryCeleb2023
+SEG_LEN=30
+MODE=augmentation
+MANIFEST_DIR=${DEST_DIR}/fairseq_manifest/${SEG_LEN}s_${MODE}
+WORK_DIR=/home/kcchang3/workplace/fairseq/examples/wav2vec
+
+
+
+set -e
+set -u
+set -o pipefail
+
+stage=0
+stop_stage=3
+if [ $stage -ge 0 ] && [ $stage -le 0 ]; then
+        python /home/kcchang3/workplace/CryCeleb2023/data_process/merge_data.py \
+                --dataset_path $DATASET_PATH \
+                --des_path $DEST_DIR \
+                --seg_len $SEG_LEN \ 
+                --mode $MODE
+fi
+
+if [ $stage -ge 1 ] && [ $stage -le 1 ]; then
+        python examples/wav2vec/wav2vec_manifest.py \
+                ${DEST_DIR}/audio_dump_${SEG_LEN}s_${MODE} \
+                --dest $MANIFEST_DIR \
+                --ext wav \
+                --valid-percent 0.1
+fi
+
+if [ $stage -ge 2 ] && [ $stage -le 2 ]; then
+        save_dir=${WORK_DIR}/outputs/wav2vec-base-64gpu-cryceleb-${SEG_LEN}s_${MODE}
+
+        srun --gres=gpu:4 --ntasks=1 fairseq-hydra-train \
+        task.data=${MANIFEST_DIR} \
+        checkpoint.save_dir=${save_dir} hydra.run.dir=${save_dir} \
+        common.fp16=True \
+        distributed_training.distributed_world_size=4 \
+        +optimization.update_freq='[16]' \
+        --config-dir ${WORK_DIR}/config/pretraining \
+        --config-name wav2vec2_base_librispeech
+fi
